@@ -1,0 +1,184 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+@*vincular o arquivo ao model paginado para exibição da tabela*@
+@using X.PagedList.Mvc.Core
+@using X.PagedList;
+@model PersonPageInfo
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+
+<div class="text-center">
+    <h1 class="display-4">Welcome</h1>
+</div>
+
+<div class="container">
+    <table class="table table-bordered">
+        @* Definição das colunas da tabela contendo os dados da especificação, além do botão de registrar como uma coluna também. escolhi dessa forma pois julgue
+            ser melhor esteticamente*@
+        <th>Name</th>
+        <th>Email</th>
+        <th>Start Date</th>
+        <th>Team</th>
+        <th width="150px" align="center">
+            <input type="button" id="btnAdd" class="btn btn-success btn-sm" value="Register" onclick="add()" />
+        </th>
+        <tbody>
+            @* caso exista alguma informação na tabela, fazer a iteração dela e adicionar um person para cada linha, no fim de cada person ter uma coluna 
+                para conter os botões de editar e deletar*@
+            @if (Model != null && Model.Persons != null)
+            {
+                @foreach (var person in Model.Persons)
+                {
+                    <tr>
+                        <td>@person.Name</td>
+                        <td>@person.Email</td>
+                        <td>@person.StartDate</td>
+                        <td>@person.Team</td>
+                        <td>
+                            @* para cada botão, inclusive o de registrar, foram criados métodos em javascript paara auxiliar na execução*@
+                            <input type="button" id="btnEdit" class="btn btn-warning btn-sm" value="Edit" onclick="edit('@person.Id' , '@person.Name' , '@person.BirthDate' , '@person.Email' , '@person.Cpf' , '@person.Gender' , '@person.StartDate' , '@person.Team' )" />
+                            <input type="button" id="btnRemove" class="btn btn-danger btn-sm" value="Disable" onclick="cancelModal('@person.Id')" />
+                        </td>
+                    </tr>
+                }
+                <tr>
+                    <td colspan="5">
+                        @Html.PagedListPager((IPagedList)Model.Persons, page => Url.Action("", new { page = page }),
+                       X.PagedList.Web.Common.PagedListRenderOptions.OnlyShowFivePagesAtATime)
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<div id="modalAdd" class="w3-modal">
+    <div class="w3-modal-content w3-card-4 w3-animate-zoom" style="max-width:600px">
+        @* modal responsável por adicionar e atualizar as informações, possui um botão de fechar no topo e os fields de acordo com o requisitado para preenchimento*@
+        <div class="w3-center">
+            <br>
+            <span onclick="document.getElementById('modalAdd').style.display='none'" class="w3-button w3-xlarge w3-hover-red w3-display-topright" title="Close Modal">&times;</span>
+        </div>
+        @* usando a tag para garantir q é um método post e já estabelecendo a rota, desse jeito n é preciso usar ajax*@
+        @using (Html.BeginForm("Post", "", FormMethod.Post))
+        {
+            <form class="w3-container" action="" method="post">
+                <div class="w3-section">
+                    <input id="id" name="id" type="hidden" />
+                    <label><b>Name</b></label>
+                    <input class="w3-input w3-border w3-margin-bottom" type="text" id="name" name="name" required />
+                    <label><b>Birth Date</b></label>
+                    <input class="w3-input w3-border" type="date" id="birthdate" name="birthdate" required />
+                    <label><b>Email</b></label>
+                    <input class="w3-input w3-border" type="text" name="email" id="email" required />
+                    <label><b>CPF</b></label>
+                    <input class="w3-input w3-border" type="text" name="cpf" id="cpf" required />
+                    <label><b>Gender</b></label>
+                    <select id="gender" name="gender" class="w3-input w3-border" required>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Others">Others</option>
+                        <option value="Prefer not to declare">Prefer not to declare</option>
+                    </select>
+                    @* para a data de inicio foi criado uma máscara com a finalidade de manter o padrão mm/yyyy. vale ressaltar q o usuário pode digitar o q quiser
+                        nesse campo, porém enquanto ele n seguir o padrão definido ele n conseguirá cadastrar*@
+                    <label><b>Start Date (MM/YYYY)</b></label>
+                    <input class="w3-input w3-border" type="text" pattern="\d{2}/\d{4}" name="startdate" id="startdate" required />
+                    @* como o team pode ser nulo foi criado uma opção nula invisível, q serve apenas para permitir o usuário n selecionar nada*@
+                    <label><b>Team</b></label>
+                    <select id="team" name="team" class="w3-input w3-border">
+                        <option style="display:none" />
+                        <option value="Mobile">Mobile</option>
+                        <option value="FrontEnd">FrontEnd</option>
+                        <option value="BackEnd">BackEnd</option>
+                    </select>
+                    <button class="w3-button w3-block w3-green w3-section w3-padding" type="submit">Register</button>
+                </div>
+            </form>
+        }
+
+        <div class="w3-container w3-border-top w3-padding-16 w3-light-grey">
+            <button onclick="document.getElementById('modalAdd').style.display='none'" type="button" class="w3-button w3-red">Cancel</button>
+        </div>
+
+    </div>
+</div>
+
+<div id="modalRemove" class="w3-modal">
+    @* modal de remoção, contém o aviso para garantir q o usuário tenhha certeza da exclusão e para caso positivo chama uma rotina ajax feita mais abaixo*@
+    <div class="w3-modal-content w3-card-4 w3-animate-zoom" style="max-width:600px">
+
+        <div class="w3-center">
+            <br>
+            <span onclick="document.getElementById('modalRemove').style.display='none'" class="w3-button w3-xlarge w3-hover-red w3-display-topright" title="Close Modal">&times;</span>
+        </div>
+
+        <form class="w3-container" action="/action_page.php">
+            <div class="w3-section">
+                <label><b>Are you sure you want to disable ?</b></label>
+            </div>
+        </form>
+        <div class="w3-container w3-border-top w3-padding-16 w3-light-grey">
+            <button class="w3-button w3-green" onclick="deletePerson()">Yes</button>
+            <button onclick="document.getElementById('modalRemove').style.display='none'" type="button" class="w3-button w3-red">No</button>
+        </div>
+
+    </div>
+</div>
+
+<script type="text/javascript">
+    /*metodo para editar. irá abrir o modal e fazer um bind entre os parametros passados e os inputs do modal, dessa forma, 
+     * permite trazer as infos salvas da tabela para o modal*/
+    function edit(id, name, birthdate, email, cpf, gender, startdate, team) {
+        document.getElementById('modalAdd').style.display = 'block'
+        document.getElementById('id').value = id
+        document.getElementById('name').value = name
+        document.getElementById('birthdate').value = birthdate
+        document.getElementById('email').value = email
+        document.getElementById('cpf').value = cpf
+        document.getElementById('gender').value = gender
+        document.getElementById('startdate').value = startdate
+        document.getElementById('team').value = team
+    }
+
+    /* esse método tem como proposito apenas limpar o lixo salvo antes, já q para registrar todos os fields precisam estar vazios*/
+    function add() {
+        document.getElementById('modalAdd').style.display = 'block'
+        document.getElementById('id').value = null
+        document.getElementById('name').value = null
+        document.getElementById('birthdate').value = null
+        document.getElementById('email').value = null
+        document.getElementById('cpf').value = null
+        document.getElementById('gender').value = null
+        document.getElementById('startdate').value = null
+        document.getElementById('team').value = null
+    }
+
+    /* essa primeira rotina vai realizar o bind do id ao field id, q é um field hidden pois ele n pode ser editado, porém é utilizado para a passagem pro servidor */
+    function cancelModal(id) {
+        document.getElementById('id').value = id
+        document.getElementById('modalRemove').style.display = 'block'
+    }
+
+    /* um procedimento usando ajax, q realiza a requisição delete para a url desejada, passando o id do objeto na url, e no sucesso realizar o refresh 
+     da página inicial, além de fechar o modal*/
+    function deletePerson() {
+        var id = document.getElementById('id').value
+        $.ajax({
+            type: "DELETE",
+            url: 'Home/Delete' + '?' + $.param({ "id": id }),
+            success: function (data) {
+                setTimeout(
+                    function () {
+                        location.reload();
+                    }, 0001);
+            },
+        });
+        document.getElementById('modalRemove').style.display = 'none'
+    }
+</script>
